@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GDAES - Gerenciador de Abas e Só</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <span class="material-symbols-rounded">tab</span>
+                    Abas Abertas <span class="tab-count"></span>
+                </h2>
+                <div class="search-container">
+                    <span class="material-symbols-rounded">search</span>
+                    <input type="text" id="tab-search" placeholder="Buscar abas..." class="search-input">
+                </div>
+            </div>
+            <div id="open-tabs-list" class="tab-list"></div>
+        </aside>
+
+        <main class="main-area">
+            <div class="lists-header">
+                <div class="title-section">
+                    <h2>
+                        <span class="material-symbols-rounded">folder</span>
+                        Listas Salvas
+                    </h2>
+                </div>
+                <div class="actions-section">
+                    <button id="add-list-btn" class="btn-primary" title="Adicionar Nova Lista">
+                        <span class="material-symbols-rounded">add</span>
+                        Nova Lista
+                    </button>
+                    <button id="import-button" class="btn-secondary" title="Importar Listas">
+                        <span class="material-symbols-rounded">upload</span>
+                        Importar
+                    </button>
+                    <button id="export-button" class="btn-secondary" title="Exportar Listas">
+                        <span class="material-symbols-rounded">download</span>
+                        Exportar
+                    </button>
+                </div>
+            </div>
+
+            <div id="saved-lists" class="lists-grid"></div>
+        </main>
+    </div>
+
+    <!-- Modal para nova lista -->
+    <div id="new-list-modal" class="modal">
+        <div class="modal-content">
+            <header class="modal-header">
+                <h3>
+                    <span class="material-symbols-rounded">add_circle</span>
+                    Nova Lista
+                </h3>
+                <button class="close-modal" title="Fechar">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </header>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="new-list-name">Nome da Lista</label>
+                    <input type="text" 
+                           id="new-list-name" 
+                           placeholder="Digite o nome da lista..."
+                           autocomplete="off"
+                           maxlength="50">
+                </div>
+                <div class="modal-actions">
+                    <button id="confirm-new-list" class="btn-primary">
+                        <span class="material-symbols-rounded">check</span>
+                        Criar Lista
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template for list items -->
+    <template id="list-item-template">
+        <div class="list-container">
+            <header class="list-header">
+                <h3 class="list-title"></h3>
+                <div class="list-actions">
+                    <button class="btn-icon edit-list-name" title="Editar nome">
+                        <span class="material-symbols-rounded">edit</span>
+                    </button>
+                    <button class="btn-icon open-all-urls" title="Abrir todas as URLs">
+                        <span class="material-symbols-rounded">open_in_new</span>
+                    </button>
+                    <button class="btn-icon delete-list" title="Deletar lista">
+                        <span class="material-symbols-rounded">delete</span>
+                    </button>
+                </div>
+            </header>
+            <div class="list-items"></div>
+        </div>
+    </template>
+
+    <!-- Template for URL items -->
+    <template id="url-item-template">
+        <div class="saved-url" draggable="true">
+            <img class="url-favicon" alt="Favicon">
+            <a class="url-link" target="_blank"></a>
+            <div class="url-actions">
+                <button class="btn-icon open-url" title="Abrir URL">
+                    <span class="material-symbols-rounded">launch</span>
+                </button>
+                <button class="btn-icon delete-url" title="Remover URL">
+                    <span class="material-symbols-rounded">delete</span>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Input file escondido para importação -->
+    <input type="file" id="import-input" accept=".json" style="display: none">
+
+    <!-- Scripts -->
+    <script type="module" src="storage.js"></script>
+    <script type="module" src="popup.js"></script>
+</body>
+</html>

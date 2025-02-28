@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "GDAES - Gerenciador de Abas e Só",
+  "version": "2.0",
+  "description": "Um belo e útil gerenciador de abas para o navegador Chrome.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "unlimitedStorage"
+  ],
+  "chrome_url_overrides": {
+    "newtab": "popup/popup.html"
+  },
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}

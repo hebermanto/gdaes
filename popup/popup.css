@@ -380,3 +380,15 @@ button:active {
 .window-group-header:first-child {
     margin-top: 0 !important;
 }
+
+/* Add this to your existing CSS */
+.collapsible-container {
+    padding-left: 16px; /* Indent the tabs */
+    transition: max-height 0.2s ease-out;
+}
+
+/* Add this to your existing CSS */
+.toggle-icon {
+    vertical-align: middle; /* Align icon with text */
+    transition: transform 0.2s ease; /* Smooth transition for icon rotation */
+}

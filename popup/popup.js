@@ -118,7 +118,21 @@ function updateOpenTabs() {
             windowHeader.style.borderBottom = '2px solid var(--primary-color)';
             windowHeader.style.color = 'var(--text-primary)';
             windowHeader.style.fontWeight = '600';
+            windowHeader.style.cursor = 'pointer';
+
+            // Add a clickable icon
+            const icon = document.createElement('span');
+            icon.className = 'toggle-icon material-symbols-rounded';
+            icon.textContent = 'expand_more'; // Icon indicating it can be expanded
+            icon.style.marginLeft = '8px';
+            windowHeader.appendChild(icon);
+
             openTabsList.appendChild(windowHeader);
+
+            // Create collapsible container for tabs
+            const collapsibleContainer = document.createElement('div');
+            collapsibleContainer.className = 'collapsible-container';
+            collapsibleContainer.style.display = 'block'; // Set to block to be open by default
 
             // Create tabs for this window
             windowTabs.forEach((tab, index) => {
@@ -164,7 +178,17 @@ function updateOpenTabs() {
                 });
 
                 tabItem.appendChild(tabLink);
-                openTabsList.appendChild(tabItem);
+                collapsibleContainer.appendChild(tabItem);
+            });
+
+            // Append collapsible container to the open tabs list
+            openTabsList.appendChild(collapsibleContainer);
+
+            // Toggle collapsible container on header click
+            windowHeader.addEventListener('click', () => {
+                const isVisible = collapsibleContainer.style.display === 'block';
+                collapsibleContainer.style.display = isVisible ? 'none' : 'block';
+                icon.textContent = isVisible ? 'expand_more' : 'expand_less'; // Change icon based on visibility
             });
 
             windowCount++;

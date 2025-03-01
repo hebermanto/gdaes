@@ -193,18 +193,16 @@ button:active {
 
 /* Saved Lists */
 #saved-lists {
-    overflow-y: auto;
     display: grid;
-    gap: var(--spacing-md);
-    padding: var(--spacing-sm);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
 }
 
 .list-container {
-    background-color: var(--surface-color);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-md);
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow var(--transition-fast);
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
 }
 
 .list-container:hover {

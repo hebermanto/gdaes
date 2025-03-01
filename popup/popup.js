@@ -259,7 +259,6 @@ function setupDragAndDrop(listContainer, listName) {
             
             // Update UI with animation
             renderSavedLists();
-            updateOpenTabs();
         } catch (error) {
             console.error('Error handling drop:', error);
         }

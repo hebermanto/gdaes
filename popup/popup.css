@@ -92,6 +92,7 @@ body {
 #open-tabs-list {
     overflow-y: auto;
     flex-grow: 1;
+    padding: var(--spacing-sm);
 }
 
 /* Tab Items */
@@ -366,4 +367,16 @@ button:active {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-color);
+}
+
+/* Add this to your existing CSS */
+.window-group-header {
+    position: sticky;
+    top: 0;
+    background-color: var(--surface-color);
+    z-index: 1;
+}
+
+.window-group-header:first-child {
+    margin-top: 0 !important;
 }

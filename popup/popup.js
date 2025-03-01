@@ -93,57 +93,81 @@ function updateOpenTabs() {
     openTabsList.innerHTML = '';
 
     chrome.tabs.query({}, (tabs) => {
-        // Update the "Abas Abertas" heading with the tab count
-        const tabCount = document.createElement('span');
-        tabCount.className = 'tab-count';
-        //tabCount.textContent = `(${tabs.length})`;
-        //atualiza o número de abas abertas
+        // Update the tab count
         document.querySelector('.tab-count').textContent = `(${tabs.length})`;
 
-        tabs.forEach((tab, index) => {
-            const tabItem = document.createElement('div');
-            tabItem.className = 'tab-item slide-in';
-            tabItem.draggable = true;
-            tabItem.style.animationDelay = `${index * 5}ms`;
+        // Group tabs by windowId
+        const windowGroups = {};
+        tabs.forEach(tab => {
+            if (!windowGroups[tab.windowId]) {
+                windowGroups[tab.windowId] = [];
+            }
+            windowGroups[tab.windowId].push(tab);
+        });
 
-            // Criar ícone da aba
-            const favicon = document.createElement('img');
-            favicon.src = tab.favIconUrl || 'default-favicon.png';
-            favicon.alt = 'Favicon';
-            favicon.width = 16;
-            favicon.height = 16;
+        // Create elements for each window group
+        let windowCount = 1;
+        Object.entries(windowGroups).forEach(([windowId, windowTabs]) => {
+            // Create window group header
+            const windowHeader = document.createElement('div');
+            windowHeader.className = 'window-group-header';
+            windowHeader.textContent = `Janela ${windowCount}`;
+            windowHeader.style.padding = '8px';
+            windowHeader.style.marginTop = '12px';
+            windowHeader.style.marginBottom = '8px';
+            windowHeader.style.borderBottom = '2px solid var(--primary-color)';
+            windowHeader.style.color = 'var(--text-primary)';
+            windowHeader.style.fontWeight = '600';
+            openTabsList.appendChild(windowHeader);
 
-            // Criar título da aba
-            const tabTitle = document.createElement('span');
-            tabTitle.textContent = tab.title;
-            tabTitle.className = 'tab-title';
+            // Create tabs for this window
+            windowTabs.forEach((tab, index) => {
+                const tabItem = document.createElement('div');
+                tabItem.className = 'tab-item slide-in';
+                tabItem.draggable = true;
+                tabItem.style.animationDelay = `${index * 5}ms`;
 
-            // Add link to switch to tab
-            const tabLink = document.createElement('a');
-            tabLink.href = '#';
-            tabLink.appendChild(favicon);
-            tabLink.appendChild(tabTitle);
-            tabLink.addEventListener('click', (event) => {
-                event.preventDefault();
-                chrome.windows.update(tab.windowId, { focused: true }, () => {
-                    chrome.tabs.update(tab.id, { active: true });
+                // Create favicon
+                const favicon = document.createElement('img');
+                favicon.src = tab.favIconUrl || 'default-favicon.png';
+                favicon.alt = 'Favicon';
+                favicon.width = 16;
+                favicon.height = 16;
+
+                // Create title
+                const tabTitle = document.createElement('span');
+                tabTitle.textContent = tab.title;
+                tabTitle.className = 'tab-title';
+
+                // Create link
+                const tabLink = document.createElement('a');
+                tabLink.href = '#';
+                tabLink.appendChild(favicon);
+                tabLink.appendChild(tabTitle);
+                tabLink.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    chrome.windows.update(tab.windowId, { focused: true }, () => {
+                        chrome.tabs.update(tab.id, { active: true });
+                    });
                 });
+
+                // Setup drag events
+                tabItem.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/uri-list', tab.url);
+                    e.dataTransfer.setData('tabId', tab.id);
+                    e.dataTransfer.setData('text/plain', tab.title);
+                    tabItem.classList.add('dragging');
+                });
+
+                tabItem.addEventListener('dragend', () => {
+                    tabItem.classList.remove('dragging');
+                });
+
+                tabItem.appendChild(tabLink);
+                openTabsList.appendChild(tabItem);
             });
 
-            // Eventos de drag com feedback visual
-            tabItem.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/uri-list', tab.url);
-                e.dataTransfer.setData('tabId', tab.id);
-                e.dataTransfer.setData('text/plain', tab.title);
-                tabItem.classList.add('dragging');
-            });
-
-            tabItem.addEventListener('dragend', () => {
-                tabItem.classList.remove('dragging');
-            });
-
-            tabItem.appendChild(tabLink);
-            openTabsList.appendChild(tabItem);
+            windowCount++;
         });
     });
 }

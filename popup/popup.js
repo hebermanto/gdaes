@@ -33,9 +33,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Add event listeners for tab creation and removal
-    chrome.tabs.onCreated.addListener(updateOpenTabs);
-    chrome.tabs.onRemoved.addListener(updateOpenTabs);    
+    addListanersTab();
 });
+
+function addListanersTab() {
+    chrome.tabs.onCreated.addListener(updateOpenTabs);
+    chrome.tabs.onRemoved.addListener(updateOpenTabs);
+}
+
+function removeListaenersTab() {
+    chrome.tabs.onCreated.removeListener(updateOpenTabs);
+    chrome.tabs.onRemoved.removeListener(updateOpenTabs);
+}
 
 // Setup search functionality
 function setupSearch() {
@@ -325,9 +334,14 @@ function setupListActions(listContainer, listName) {
 
 // Função para abrir todas as URLs de uma lista
 function openAllUrls(listName) {
+    removeListaenersTab();
+
     lists[listName].forEach(item => {
         chrome.tabs.create({ url: item.url, active: false });
     });
+
+    updateOpenTabs();
+    addListanersTab();
 }
 
 // Configurar listeners para criação e edição de listas

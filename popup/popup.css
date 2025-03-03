@@ -155,6 +155,7 @@ body {
     background-color: var(--surface-color);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
+    justify-content: space-between;
 }
 
 .lists-header h2 {
@@ -162,6 +163,29 @@ body {
     color: var(--text-primary);
     font-size: 1.25rem;
     font-weight: 600;
+}
+
+.list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--border-color);
+}
+
+h3.list-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+h3.list-title:hover span.list-title-ordering {
+    display: inline;
+}
+
+span.list-title-ordering {
+    display: none;
+    font-size: initial;
 }
 
 /* Buttons */
@@ -203,25 +227,21 @@ button:active {
     border: 1px solid #ccc;
     padding: 10px;
     border-radius: 5px;
-    background-color: #f9f9f9;
+    background-color: var(--background-color);
+    min-width: max-content;
 }
 
 .list-container:hover {
     box-shadow: var(--shadow-md);
 }
 
+.list-container.dragging {
+    opacity: 0.5;
+}
+
 .list-container.drag-over {
     box-shadow: var(--shadow-lg);
     border: 2px dashed var(--primary-color);
-}
-
-.list-container h3 {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px solid var(--border-color);
 }
 
 /* Saved URLs */

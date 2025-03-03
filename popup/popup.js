@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Add event listeners for tab creation and removal
     chrome.tabs.onCreated.addListener(updateOpenTabs);
-    chrome.tabs.onRemoved.addListener(updateOpenTabs);    
+    chrome.tabs.onRemoved.addListener(updateOpenTabs);
 });
 
 // Setup search functionality
@@ -43,12 +43,12 @@ function setupSearch() {
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const tabItems = document.querySelectorAll('.tab-item');
-        
+
         tabItems.forEach(item => {
             const title = item.querySelector('span').textContent.toLowerCase();
             const shouldShow = title.includes(searchTerm);
             item.style.display = shouldShow ? 'flex' : 'none';
-            
+
             // Add animation for showing items
             if (shouldShow) {
                 item.classList.add('fade-in');
@@ -204,16 +204,16 @@ function renderSavedLists() {
     Object.keys(lists).forEach(listName => {
         const listElement = listItemTemplate.content.cloneNode(true);
         const listContainer = listElement.querySelector('.list-container');
-        
+
         // Set list title
-        listContainer.querySelector('.list-title').textContent = listName;
-        
+        listContainer.querySelector('.list-title').innerHTML += listName;
+
         // Setup drag and drop
         setupDragAndDrop(listContainer, listName);
-        
+
         // Setup list actions
         setupListActions(listContainer, listName);
-        
+
         // Add URLs to list
         const listItems = listContainer.querySelector('.list-items');
         lists[listName].forEach((item, index) => {
@@ -222,21 +222,29 @@ function renderSavedLists() {
         });
 
         savedListsContainer.appendChild(listElement);
+
+        listContainer.querySelector('.list-title').addEventListener('mouseenter', () => {
+            listContainer.setAttribute('draggable', 'true')
+        })
+
+        listContainer.querySelector('.list-title').addEventListener('mouseleave', () => {
+            listContainer.removeAttribute('draggable')
+        })
     });
 }
 
 function createUrlElement(item, listName, index) {
     const urlElement = urlItemTemplate.content.cloneNode(true);
     const urlContainer = urlElement.querySelector('.saved-url');
-    
+
     // Set favicon and title
     const favicon = urlElement.querySelector('.url-favicon');
     favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(item.url).hostname}`;
-    
+
     const urlLink = urlElement.querySelector('.url-link');
     urlLink.href = item.url;
     urlLink.textContent = item.title;
-    
+
     // Setup drag
     urlContainer.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('text/uri-list', item.url);
@@ -249,22 +257,32 @@ function createUrlElement(item, listName, index) {
     urlContainer.addEventListener('dragend', () => {
         urlContainer.classList.remove('dragging');
     });
-    
+
     // Setup actions
     const openButton = urlElement.querySelector('.open-url');
     openButton.onclick = () => chrome.tabs.create({ url: item.url });
-    
+
     const deleteButton = urlElement.querySelector('.delete-url');
     deleteButton.onclick = async () => {
         lists[listName].splice(index, 1);
         await storageService.saveLists(lists);
         renderSavedLists();
     };
-    
+
     return urlElement;
 }
 
 function setupDragAndDrop(listContainer, listName) {
+    listContainer.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', listName);
+        e.dataTransfer.setData('eventType', 'ordering_lists');
+        listContainer.classList.add('dragging');
+    });
+
+    listContainer.addEventListener('dragend', () => {
+        listContainer.classList.remove('dragging');
+    });
+
     listContainer.addEventListener('dragover', (e) => {
         e.preventDefault();
         listContainer.classList.add('drag-over');
@@ -278,6 +296,35 @@ function setupDragAndDrop(listContainer, listName) {
         e.preventDefault();
         listContainer.classList.remove('drag-over');
 
+        const eventType = e.dataTransfer.getData('eventType');
+        if (eventType && eventType == 'ordering_lists') {
+            const draggedListName = e.dataTransfer.getData('text/plain');
+
+            if (draggedListName && draggedListName !== listName) {
+                const draggedList = lists[draggedListName];
+                delete lists[draggedListName];
+
+                const newLists = {};
+                Object.keys(lists).forEach(key => {
+                    if (key === listName) {
+                        newLists[draggedListName] = draggedList;
+                    }
+                    newLists[key] = lists[key];
+                });
+
+                lists = newLists;
+
+                try {
+                    await storageService.saveLists(lists);
+                    renderSavedLists();
+                } catch (error) {
+                    console.error('Error reordering lists:', error);
+                }
+            }
+
+            return
+        }
+
         const url = e.dataTransfer.getData('text/uri-list');
         const title = e.dataTransfer.getData('text/plain');
         const tabId = parseInt(e.dataTransfer.getData('tabId'));
@@ -288,7 +335,7 @@ function setupDragAndDrop(listContainer, listName) {
             // Add to new list with animation
             const newItem = { url, title };
             lists[listName].push(newItem);
-            
+
             // Remove from source list if it's a move operation
             if (sourceList && !isNaN(sourceIndex)) {
                 lists[sourceList].splice(sourceIndex, 1);
@@ -296,7 +343,7 @@ function setupDragAndDrop(listContainer, listName) {
 
             // Save changes
             await storageService.saveLists(lists);
-            
+
             // Close tab if it's from open tabs
             if (!isNaN(tabId) && tabId) {
                 await chrome.tabs.remove(tabId);
@@ -304,7 +351,7 @@ function setupDragAndDrop(listContainer, listName) {
 
             // Create backup
             await storageService.backup();
-            
+
             // Update UI with animation
             renderSavedLists();
         } catch (error) {
@@ -317,7 +364,7 @@ function setupListActions(listContainer, listName) {
     const editButton = listContainer.querySelector('.edit-list-name');
     const deleteButton = listContainer.querySelector('.delete-list');
     const openAllButton = listContainer.querySelector('.open-all-urls');
-    
+
     editButton.onclick = () => editListName(listName);
     deleteButton.onclick = () => deleteList(listName);
     openAllButton.onclick = () => openAllUrls(listName);
@@ -450,7 +497,7 @@ function showError(message) {
     toast.className = 'toast error';
     toast.textContent = message;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.classList.add('show');
         setTimeout(() => {

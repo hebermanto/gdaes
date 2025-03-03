@@ -3,7 +3,7 @@
 GDAES é uma extensão do Chrome que ajuda você a gerenciar suas abas do navegador de forma eficiente. Ele permite que você organize abas em listas personalizadas, salve-as para depois e gerencie facilmente várias abas de uma só vez.
 
 ## Agradecimentos
-Agradecemos à **[e-comBR / sisHABI]**(https://www.sishabi.com.br/) pelo apoio ao desenvolvimento deste projeto, e a [JeanRossa](https://github.com/JeanRossa) pelo incentivo a tornar essa 'extensãozinha' pública.
+Agradecemos à **[e-comBR / sisHABI]**(https://www.sishabi.com.br/) pelo apoio ao desenvolvimento deste projeto. A [JeanRossa](https://github.com/JeanRossa) pelo incentivo a tornar essa 'extensãozinha' pública. E a PivaTafarel pelas contribuições ao projeto! 
 
 ## Recursos
 
@@ -69,6 +69,7 @@ Heber Mantovani com a ajuda do Anthropic Claude.
 ## Contribuindo
 
 Contribuições são bem-vindas! Sinta-se à vontade para enviar um Pull Request. Para grandes mudanças, por favor, abra uma issue primeiro para discutir o que você gostaria de mudar.
+
 
 ## Suporte
 

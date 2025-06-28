@@ -32,23 +32,21 @@ class StorageService {
         });
     }
 
-    async saveLists(lists) {
+    async saveData(data) {
         try {
             await this.init();
             return new Promise((resolve, reject) => {
                 const transaction = this.db.transaction([this.storeName], 'readwrite');
                 const store = transaction.objectStore(this.storeName);
 
-                // Save to IndexedDB
                 const request = store.put({
-                    id: 'mainLists',
-                    data: lists,
+                    id: 'mainData',
+                    data: data,
                     timestamp: new Date().toISOString()
                 });
 
                 request.onsuccess = () => {
-                    // Also save to chrome.storage for sync
-                    chrome.storage.local.set({ tabLists: lists }, () => {
+                    chrome.storage.local.set({ gdaesData: data }, () => {
                         resolve();
                     });
                 };
@@ -58,32 +56,39 @@ class StorageService {
                 };
             });
         } catch (error) {
-            console.error('Error saving lists:', error);
-            // Fallback to chrome.storage
+            console.error('Error saving data:', error);
             return new Promise((resolve) => {
-                chrome.storage.local.set({ tabLists: lists }, resolve);
+                chrome.storage.local.set({ gdaesData: data }, resolve);
             });
         }
     }
 
-    async getLists() {
+    async getData() {
         try {
             await this.init();
             return new Promise((resolve, reject) => {
                 const transaction = this.db.transaction([this.storeName], 'readonly');
                 const store = transaction.objectStore(this.storeName);
-                const request = store.get('mainLists');
+                const request = store.get('mainData');
 
                 request.onsuccess = () => {
                     if (request.result) {
-                        resolve(request.result.data);
+                        resolve(this.migrateData(request.result.data));
                     } else {
-                        // If no data in IndexedDB, try chrome.storage
-                        chrome.storage.local.get(['tabLists'], (result) => {
-                            resolve(result.tabLists || {
-                                "Leitura Posterior": [],
-                                "Projetos": []
-                            });
+                        chrome.storage.local.get(['gdaesData', 'tabLists'], (result) => {
+                            if (result.gdaesData) {
+                                resolve(this.migrateData(result.gdaesData));
+                            } else if (result.tabLists) {
+                                resolve(this.migrateData({ lists: result.tabLists }));
+                            } else {
+                                resolve({
+                                    lists: {
+                                        "Leitura Posterior": [],
+                                        "Projetos": []
+                                    },
+                                    listOrder: ["Leitura Posterior", "Projetos"]
+                                });
+                            }
                         });
                     }
                 };
@@ -93,29 +98,46 @@ class StorageService {
                 };
             });
         } catch (error) {
-            console.error('Error getting lists:', error);
-            // Fallback to chrome.storage
+            console.error('Error getting data:', error);
             return new Promise((resolve) => {
-                chrome.storage.local.get(['tabLists'], (result) => {
-                    resolve(result.tabLists || {
-                        "Leitura Posterior": [],
-                        "Projetos": []
-                    });
+                chrome.storage.local.get(['gdaesData', 'tabLists'], (result) => {
+                    if (result.gdaesData) {
+                        resolve(this.migrateData(result.gdaesData));
+                    } else if (result.tabLists) {
+                        resolve(this.migrateData({ lists: result.tabLists }));
+                    } else {
+                        resolve({
+                            lists: {
+                                "Leitura Posterior": [],
+                                "Projetos": []
+                            },
+                            listOrder: ["Leitura Posterior", "Projetos"]
+                        });
+                    }
                 });
             });
         }
     }
 
+    migrateData(data) {
+        if (!data.listOrder) {
+            const lists = data.lists || data;
+            const listOrder = Object.keys(lists);
+            return { lists, listOrder };
+        }
+        return data;
+    }
+
     async exportToFile() {
         try {
-            const lists = await this.getLists();
-            const data = {
-                tabLists: lists,
+            const data = await this.getData();
+            const exportData = {
+                gdaesData: data,
                 exportDate: new Date().toISOString(),
-                version: '2.0'
+                version: '2.1'
             };
             
-            const dataStr = JSON.stringify(data, null, 2);
+            const dataStr = JSON.stringify(exportData, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             
@@ -139,14 +161,17 @@ class StorageService {
                 try {
                     const importedData = JSON.parse(e.target.result);
                     
-                    // Validate imported data
-                    if (!importedData.tabLists || typeof importedData.tabLists !== 'object') {
+                    let dataToSave;
+                    if (importedData.gdaesData) {
+                        dataToSave = this.migrateData(importedData.gdaesData);
+                    } else if (importedData.tabLists) { // Legacy format
+                        dataToSave = this.migrateData({ lists: importedData.tabLists });
+                    } else {
                         throw new Error('Invalid data format');
                     }
 
-                    // Save to both storage systems
-                    await this.saveLists(importedData.tabLists);
-                    resolve(importedData.tabLists);
+                    await this.saveData(dataToSave);
+                    resolve(dataToSave);
                 } catch (error) {
                     reject(error);
                 }
@@ -159,32 +184,34 @@ class StorageService {
 
     async backup() {
         try {
-            const lists = await this.getLists();
+            const data = await this.getData();
             const backup = {
-                data: lists,
+                data: data,
                 timestamp: new Date().toISOString(),
-                version: '2.0'
+                version: '2.1'
             };
 
-            // Store backup in a separate IndexedDB store
-            const backupStore = this.db
-                .transaction(['backups'], 'readwrite')
-                .objectStore('backups');
+            const transaction = this.db.transaction(['backups'], 'readwrite');
+            const backupStore = transaction.objectStore('backups');
             
-            await backupStore.add(backup);
-            
-            // Keep only last 5 backups
-            const allBackups = await backupStore.getAll();
-            if (allBackups.length > 5) {
-                const oldestBackup = allBackups[0];
-                await backupStore.delete(oldestBackup.timestamp);
-            }
+            const request = backupStore.add(backup);
+
+            request.onsuccess = async () => {
+                const allBackupsRequest = backupStore.getAll();
+                allBackupsRequest.onsuccess = () => {
+                    const allBackups = allBackupsRequest.result;
+                    if (allBackups.length > 5) {
+                        allBackups.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                        const oldestBackupKey = allBackups[0].id;
+                        backupStore.delete(oldestBackupKey);
+                    }
+                };
+            };
         } catch (error) {
             console.error('Error creating backup:', error);
         }
     }
 }
 
-// Export the storage service
 const storageService = new StorageService();
-export default storageService; 
+export default storageService;

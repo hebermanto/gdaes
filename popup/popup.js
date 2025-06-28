@@ -1,9 +1,9 @@
 import storageService from './storage.js';
 
 // Gerenciamento de estado
-let lists = {
-    "Leitura Posterior": [],
-    "Projetos": []
+let appData = {
+    lists: {},
+    listOrder: []
 };
 
 // Templates
@@ -13,13 +13,13 @@ const urlItemTemplate = document.getElementById('url-item-template');
 // Carregar dados salvos
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        lists = await storageService.getLists();
+        appData = await storageService.getData();
         renderSavedLists();
         updateOpenTabs();
         setupListeners();
         setupSearch();
     } catch (error) {
-        console.error('Error loading lists:', error);
+        console.error('Error loading data:', error);
     }
 
     // Export functionality
@@ -33,18 +33,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Add event listeners for tab creation and removal
-    addListanersTab();
-});
-
-function addListanersTab() {
     chrome.tabs.onCreated.addListener(updateOpenTabs);
     chrome.tabs.onRemoved.addListener(updateOpenTabs);
-}
-
-function removeListaenersTab() {
-    chrome.tabs.onCreated.removeListener(updateOpenTabs);
-    chrome.tabs.onRemoved.removeListener(updateOpenTabs);
-}
+});
 
 // Setup search functionality
 function setupSearch() {
@@ -52,13 +43,12 @@ function setupSearch() {
     searchInput.addEventListener('input', (e) => {
         const searchTerm = e.target.value.toLowerCase();
         const tabItems = document.querySelectorAll('.tab-item');
-
+        
         tabItems.forEach(item => {
             const title = item.querySelector('span').textContent.toLowerCase();
             const shouldShow = title.includes(searchTerm);
             item.style.display = shouldShow ? 'flex' : 'none';
-
-            // Add animation for showing items
+            
             if (shouldShow) {
                 item.classList.add('fade-in');
                 setTimeout(() => item.classList.remove('fade-in'), 300);
@@ -68,12 +58,12 @@ function setupSearch() {
 }
 
 // Function to display the lists
-async function loadSavedLists() {
+async function loadSavedData() {
     try {
-        lists = await storageService.getLists();
+        appData = await storageService.getData();
         renderSavedLists();
     } catch (error) {
-        console.error('Error loading lists:', error);
+        console.error('Error loading data:', error);
     }
 }
 
@@ -86,8 +76,8 @@ document.getElementById('import-input').addEventListener('change', async (event)
     const file = event.target.files[0];
     if (file) {
         try {
-            lists = await storageService.importFromFile(file);
-            loadSavedLists();
+            appData = await storageService.importFromFile(file);
+            loadSavedData();
             alert('Lists imported successfully!');
         } catch (error) {
             console.error('Error importing data:', error);
@@ -102,10 +92,8 @@ function updateOpenTabs() {
     openTabsList.innerHTML = '';
 
     chrome.tabs.query({}, (tabs) => {
-        // Update the tab count
         document.querySelector('.tab-count').textContent = `(${tabs.length})`;
 
-        // Group tabs by windowId
         const windowGroups = {};
         tabs.forEach(tab => {
             if (!windowGroups[tab.windowId]) {
@@ -114,55 +102,37 @@ function updateOpenTabs() {
             windowGroups[tab.windowId].push(tab);
         });
 
-        // Create elements for each window group
         let windowCount = 1;
         Object.entries(windowGroups).forEach(([windowId, windowTabs]) => {
-            // Create window group header
             const windowHeader = document.createElement('div');
             windowHeader.className = 'window-group-header';
             windowHeader.textContent = `Janela ${windowCount}`;
-            windowHeader.style.padding = '8px';
-            windowHeader.style.marginTop = '12px';
-            windowHeader.style.marginBottom = '8px';
-            windowHeader.style.borderBottom = '2px solid var(--primary-color)';
-            windowHeader.style.color = 'var(--text-primary)';
-            windowHeader.style.fontWeight = '600';
-            windowHeader.style.cursor = 'pointer';
-
-            // Add a clickable icon
             const icon = document.createElement('span');
             icon.className = 'toggle-icon material-symbols-rounded';
-            icon.textContent = 'expand_more'; // Icon indicating it can be expanded
-            icon.style.marginLeft = '8px';
+            icon.textContent = 'expand_more';
             windowHeader.appendChild(icon);
-
             openTabsList.appendChild(windowHeader);
 
-            // Create collapsible container for tabs
             const collapsibleContainer = document.createElement('div');
             collapsibleContainer.className = 'collapsible-container';
-            collapsibleContainer.style.display = 'block'; // Set to block to be open by default
+            collapsibleContainer.style.display = 'block';
 
-            // Create tabs for this window
             windowTabs.forEach((tab, index) => {
                 const tabItem = document.createElement('div');
                 tabItem.className = 'tab-item slide-in';
                 tabItem.draggable = true;
                 tabItem.style.animationDelay = `${index * 5}ms`;
 
-                // Create favicon
                 const favicon = document.createElement('img');
                 favicon.src = tab.favIconUrl || 'default-favicon.png';
                 favicon.alt = 'Favicon';
                 favicon.width = 16;
                 favicon.height = 16;
 
-                // Create title
                 const tabTitle = document.createElement('span');
                 tabTitle.textContent = tab.title;
                 tabTitle.className = 'tab-title';
 
-                // Create link
                 const tabLink = document.createElement('a');
                 tabLink.href = '#';
                 tabLink.appendChild(favicon);
@@ -174,11 +144,14 @@ function updateOpenTabs() {
                     });
                 });
 
-                // Setup drag events
                 tabItem.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('text/uri-list', tab.url);
-                    e.dataTransfer.setData('tabId', tab.id);
-                    e.dataTransfer.setData('text/plain', tab.title);
+                    const dragData = {
+                        type: 'tab',
+                        url: tab.url,
+                        title: tab.title,
+                        tabId: tab.id
+                    };
+                    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
                     tabItem.classList.add('dragging');
                 });
 
@@ -190,14 +163,12 @@ function updateOpenTabs() {
                 collapsibleContainer.appendChild(tabItem);
             });
 
-            // Append collapsible container to the open tabs list
             openTabsList.appendChild(collapsibleContainer);
 
-            // Toggle collapsible container on header click
             windowHeader.addEventListener('click', () => {
                 const isVisible = collapsibleContainer.style.display === 'block';
                 collapsibleContainer.style.display = isVisible ? 'none' : 'block';
-                icon.textContent = isVisible ? 'expand_more' : 'expand_less'; // Change icon based on visibility
+                icon.textContent = isVisible ? 'expand_less' : 'expand_more';
             });
 
             windowCount++;
@@ -205,178 +176,163 @@ function updateOpenTabs() {
     });
 }
 
-// Renderizar listas salvas usando templates
+// Renderizar listas salvas
 function renderSavedLists() {
     const savedListsContainer = document.getElementById('saved-lists');
     savedListsContainer.innerHTML = '';
 
-    Object.keys(lists).forEach(listName => {
+    appData.listOrder.forEach(listName => {
+        if (!appData.lists[listName]) return;
+
         const listElement = listItemTemplate.content.cloneNode(true);
         const listContainer = listElement.querySelector('.list-container');
+        listContainer.dataset.listName = listName;
 
-        // Set list title
-        listContainer.querySelector('.list-title').innerHTML += listName;
+        const listHeader = listContainer.querySelector('.list-header');
+        listHeader.draggable = true;
 
-        // Setup drag and drop
-        setupDragAndDrop(listContainer, listName);
-
-        // Setup list actions
+        listContainer.querySelector('.list-title').textContent = listName;
+        
+        setupListDragAndDrop(listContainer, listName);
         setupListActions(listContainer, listName);
-
-        // Add URLs to list
+        
         const listItems = listContainer.querySelector('.list-items');
-        lists[listName].forEach((item, index) => {
+        listItems.innerHTML = '';
+        appData.lists[listName].forEach((item, index) => {
             const urlElement = createUrlElement(item, listName, index);
             listItems.appendChild(urlElement);
         });
 
         savedListsContainer.appendChild(listElement);
-
-        listContainer.querySelector('.list-title').addEventListener('mouseenter', () => {
-            listContainer.setAttribute('draggable', 'true')
-        })
-
-        listContainer.querySelector('.list-title').addEventListener('mouseleave', () => {
-            listContainer.removeAttribute('draggable')
-        })
     });
 }
 
 function createUrlElement(item, listName, index) {
     const urlElement = urlItemTemplate.content.cloneNode(true);
     const urlContainer = urlElement.querySelector('.saved-url');
-
-    // Set favicon and title
+    urlContainer.dataset.index = index;
+    
     const favicon = urlElement.querySelector('.url-favicon');
     try {
         favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(item.url).hostname}`;
     } catch (e) {
-        favicon.src = 'default-favicon.png'; // Fallback for invalid URLs
+        favicon.src = 'default-favicon.png';
     }
     
     const urlLink = urlElement.querySelector('.url-link');
     urlLink.href = item.url;
     urlLink.textContent = item.title;
-
-    // Setup drag
+    
     urlContainer.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/uri-list', item.url);
-        e.dataTransfer.setData('text/plain', item.title);
-        e.dataTransfer.setData('sourceList', listName);
-        e.dataTransfer.setData('sourceIndex', index);
+        const dragData = {
+            type: 'url',
+            url: item.url,
+            title: item.title,
+            sourceList: listName,
+            sourceIndex: index
+        };
+        e.dataTransfer.setData('application/json', JSON.stringify(dragData));
         urlContainer.classList.add('dragging');
     });
 
     urlContainer.addEventListener('dragend', () => {
         urlContainer.classList.remove('dragging');
     });
-
-    // Setup actions
+    
     const openButton = urlElement.querySelector('.open-url');
     openButton.onclick = () => {
         try {
             new URL(item.url);
             chrome.tabs.create({ url: item.url });
         } catch (e) {
-            console.error("Invalid URL, cannot open:", item.url);
             showError(`URL inválida: ${item.url}`);
         }
     };
     
     const deleteButton = urlElement.querySelector('.delete-url');
     deleteButton.onclick = async () => {
-        lists[listName].splice(index, 1);
-        await storageService.saveLists(lists);
+        appData.lists[listName].splice(index, 1);
+        await storageService.saveData(appData);
         renderSavedLists();
     };
-
+    
     return urlElement;
 }
 
-function setupDragAndDrop(listContainer, listName) {
-    listContainer.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', listName);
-        e.dataTransfer.setData('eventType', 'ordering_lists');
-        listContainer.classList.add('dragging');
+function setupListDragAndDrop(listContainer, listName) {
+    const listHeader = listContainer.querySelector('.list-header');
+
+    // Dragging the list itself
+    listHeader.addEventListener('dragstart', (e) => {
+        e.stopPropagation();
+        const dragData = { type: 'list', sourceList: listName };
+        e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+        listContainer.classList.add('dragging-list');
     });
 
-    listContainer.addEventListener('dragend', () => {
-        listContainer.classList.remove('dragging');
+    listHeader.addEventListener('dragend', (e) => {
+        listContainer.classList.remove('dragging-list');
     });
 
+    // Dragging over a list container (for both URLs and lists)
     listContainer.addEventListener('dragover', (e) => {
         e.preventDefault();
-        listContainer.classList.add('drag-over');
+        const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
+        if (dragData.type === 'list') {
+            listContainer.classList.add('drag-over-list');
+        } else {
+            listContainer.classList.add('drag-over');
+        }
     });
 
     listContainer.addEventListener('dragleave', () => {
         listContainer.classList.remove('drag-over');
+        listContainer.classList.remove('drag-over-list');
     });
 
+    // Dropping on a list container
     listContainer.addEventListener('drop', async (e) => {
         e.preventDefault();
+        e.stopPropagation();
         listContainer.classList.remove('drag-over');
+        listContainer.classList.remove('drag-over-list');
 
-        const eventType = e.dataTransfer.getData('eventType');
-        if (eventType && eventType == 'ordering_lists') {
-            const draggedListName = e.dataTransfer.getData('text/plain');
+        const dragData = JSON.parse(e.dataTransfer.getData('application/json'));
 
-            if (draggedListName && draggedListName !== listName) {
-                const draggedList = lists[draggedListName];
-                delete lists[draggedListName];
+        if (dragData.type === 'list') {
+            // Reorder lists
+            const sourceList = dragData.sourceList;
+            const targetList = listName;
+            const sourceIndex = appData.listOrder.indexOf(sourceList);
+            const targetIndex = appData.listOrder.indexOf(targetList);
 
-                const newLists = {};
-                Object.keys(lists).forEach(key => {
-                    if (key === listName) {
-                        newLists[draggedListName] = draggedList;
-                    }
-                    newLists[key] = lists[key];
-                });
+            if (sourceIndex > -1 && targetIndex > -1) {
+                appData.listOrder.splice(sourceIndex, 1);
+                appData.listOrder.splice(targetIndex, 0, sourceList);
+                await storageService.saveData(appData);
+                renderSavedLists();
+            }
+        } else {
+            // Move URL or Tab
+            const newItem = { url: dragData.url, title: dragData.title };
+            
+            // Add to new list
+            if (!appData.lists[listName]) appData.lists[listName] = [];
+            appData.lists[listName].push(newItem);
 
-                lists = newLists;
-
-                try {
-                    await storageService.saveLists(lists);
-                    renderSavedLists();
-                } catch (error) {
-                    console.error('Error reordering lists:', error);
-                }
+            // Remove from source list if it's a move
+            if (dragData.sourceList) {
+                appData.lists[dragData.sourceList].splice(dragData.sourceIndex, 1);
             }
 
-            return
-        }
-
-        const url = e.dataTransfer.getData('text/uri-list');
-        const title = e.dataTransfer.getData('text/plain');
-        const tabId = parseInt(e.dataTransfer.getData('tabId'));
-        const sourceList = e.dataTransfer.getData('sourceList');
-        const sourceIndex = parseInt(e.dataTransfer.getData('sourceIndex'));
-
-        try {
-            // Add to new list with animation
-            const newItem = { url, title };
-            lists[listName].push(newItem);
-
-            // Remove from source list if it's a move operation
-            if (sourceList && !isNaN(sourceIndex)) {
-                lists[sourceList].splice(sourceIndex, 1);
+            await storageService.saveData(appData);
+            
+            if (dragData.type === 'tab' && dragData.tabId) {
+                await chrome.tabs.remove(dragData.tabId);
             }
-
-            // Save changes
-            await storageService.saveLists(lists);
-
-            // Close tab if it's from open tabs
-            if (!isNaN(tabId) && tabId) {
-                await chrome.tabs.remove(tabId);
-            }
-
-            // Create backup
+            
             await storageService.backup();
-
-            // Update UI with animation
             renderSavedLists();
-        } catch (error) {
-            console.error('Error handling drop:', error);
         }
     });
 }
@@ -385,74 +341,58 @@ function setupListActions(listContainer, listName) {
     const editButton = listContainer.querySelector('.edit-list-name');
     const deleteButton = listContainer.querySelector('.delete-list');
     const openAllButton = listContainer.querySelector('.open-all-urls');
-
+    
     editButton.onclick = () => editListName(listName);
     deleteButton.onclick = () => deleteList(listName);
     openAllButton.onclick = () => openAllUrls(listName);
 }
 
-// Função para abrir todas as URLs de uma lista
 function openAllUrls(listName) {
-    removeListaenersTab();
-
-    lists[listName].forEach(item => {
-        chrome.tabs.create({ url: item.url, active: false });
+    appData.lists[listName].forEach(item => {
+        try {
+            new URL(item.url);
+            chrome.tabs.create({ url: item.url, active: false });
+        } catch (e) {
+            console.warn(`Skipping invalid URL: ${item.url}`);
+        }
     });
-
-    updateOpenTabs();
-    addListanersTab();
 }
 
-// Configurar listeners para criação e edição de listas
 function setupListeners() {
-    // Botão para adicionar nova lista
     const addListBtn = document.getElementById('add-list-btn');
     const newListModal = document.getElementById('new-list-modal');
     const closeModalBtn = document.querySelector('.close-modal');
     const confirmNewListBtn = document.getElementById('confirm-new-list');
     const newListNameInput = document.getElementById('new-list-name');
 
-    // Abrir modal de nova lista
     addListBtn.addEventListener('click', () => {
         newListModal.style.display = 'block';
         newListNameInput.value = '';
-        newListNameInput.focus(); // Focus the input field
+        newListNameInput.focus();
     });
 
-    // Fechar modal
     closeModalBtn.addEventListener('click', () => {
         newListModal.style.display = 'none';
     });
 
-    // Confirmar criação de nova lista
-    confirmNewListBtn.addEventListener('click', () => {
+    const createNewList = async () => {
         const newListName = newListNameInput.value.trim();
-        if (newListName && !lists[newListName]) {
-            lists[newListName] = [];
-            storageService.saveLists(lists);
+        if (newListName && !appData.lists[newListName]) {
+            appData.lists[newListName] = [];
+            appData.listOrder.push(newListName);
+            await storageService.saveData(appData);
             renderSavedLists();
             newListModal.style.display = 'none';
         } else {
             alert('Por favor, insira um nome de lista válido e único.');
         }
-    });
+    };
 
-    // Confirmar criação de nova lista ao pressionar Enter
+    confirmNewListBtn.addEventListener('click', createNewList);
     newListNameInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const newListName = newListNameInput.value.trim();
-            if (newListName && !lists[newListName]) {
-                lists[newListName] = [];
-                storageService.saveLists(lists);
-                renderSavedLists();
-                newListModal.style.display = 'none';
-            } else {
-                alert('Por favor, insira um nome de lista válido e único.');
-            }
-        }
+        if (e.key === 'Enter') createNewList();
     });
 
-    // Fechar modal ao clicar fora
     window.addEventListener('click', (e) => {
         if (e.target === newListModal) {
             newListModal.style.display = 'none';
@@ -460,70 +400,54 @@ function setupListeners() {
     });
 }
 
-// Deletar lista
 async function deleteList(listName) {
     if (confirm(`Tem certeza que deseja deletar a lista "${listName}"?`)) {
-        delete lists[listName];
+        delete appData.lists[listName];
+        appData.listOrder = appData.listOrder.filter(name => name !== listName);
 
         try {
-            // Save to storage
-            await storageService.saveLists(lists);
-            // Create backup
+            await storageService.saveData(appData);
             await storageService.backup();
         } catch (error) {
             console.error('Error deleting list:', error);
         }
-
-        // Renderizar listas atualizadas
         renderSavedLists();
     }
 }
 
-// Editar nome da lista
 async function editListName(oldListName) {
     const newListName = prompt('Digite o novo nome da lista:', oldListName);
 
     if (newListName && newListName.trim() !== '' && newListName !== oldListName) {
-        // Verificar se o novo nome já existe
-        if (lists[newListName]) {
+        if (appData.lists[newListName]) {
             alert('Já existe uma lista com este nome.');
             return;
         }
 
-        // Criar nova entrada com o novo nome
-        lists[newListName] = lists[oldListName];
-        delete lists[oldListName];
+        appData.lists[newListName] = appData.lists[oldListName];
+        delete appData.lists[oldListName];
+
+        const index = appData.listOrder.indexOf(oldListName);
+        if (index > -1) {
+            appData.listOrder[index] = newListName;
+        }
 
         try {
-            // Save to storage
-            await storageService.saveLists(lists);
-            // Create backup
-            await storageService.backup();
+            await storageService.saveData(appData);
+            await storage.backup();
         } catch (error) {
             console.error('Error updating list name:', error);
         }
-
-        // Renderizar listas atualizadas
         renderSavedLists();
     }
 }
 
-// Add loading indicator
-function showLoading(element) {
-    element.classList.add('loading');
-}
-
-function hideLoading(element) {
-    element.classList.remove('loading');
-}
-
-// Error toast notification
 function showError(message) {
     const toast = document.createElement('div');
     toast.className = 'toast error';
     toast.textContent = message;
     document.body.appendChild(toast);
-
+    
     setTimeout(() => {
         toast.classList.add('show');
         setTimeout(() => {

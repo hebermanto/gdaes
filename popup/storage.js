@@ -25,6 +25,9 @@ class StorageService {
                 if (!db.objectStoreNames.contains(this.storeName)) {
                     db.createObjectStore(this.storeName, { keyPath: 'id' });
                 }
+                if (!db.objectStoreNames.contains('backups')) {
+                    db.createObjectStore('backups', { autoIncrement: true });
+                }
             };
         });
     }

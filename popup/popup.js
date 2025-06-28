@@ -248,8 +248,12 @@ function createUrlElement(item, listName, index) {
 
     // Set favicon and title
     const favicon = urlElement.querySelector('.url-favicon');
-    favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(item.url).hostname}`;
-
+    try {
+        favicon.src = `https://www.google.com/s2/favicons?domain=${new URL(item.url).hostname}`;
+    } catch (e) {
+        favicon.src = 'default-favicon.png'; // Fallback for invalid URLs
+    }
+    
     const urlLink = urlElement.querySelector('.url-link');
     urlLink.href = item.url;
     urlLink.textContent = item.title;
@@ -269,8 +273,16 @@ function createUrlElement(item, listName, index) {
 
     // Setup actions
     const openButton = urlElement.querySelector('.open-url');
-    openButton.onclick = () => chrome.tabs.create({ url: item.url });
-
+    openButton.onclick = () => {
+        try {
+            new URL(item.url);
+            chrome.tabs.create({ url: item.url });
+        } catch (e) {
+            console.error("Invalid URL, cannot open:", item.url);
+            showError(`URL inválida: ${item.url}`);
+        }
+    };
+    
     const deleteButton = urlElement.querySelector('.delete-url');
     deleteButton.onclick = async () => {
         lists[listName].splice(index, 1);
